@@ -1,0 +1,16 @@
+{
+  "name":"demo6",
+  "rootfs":"./alpine",
+  "command":"/bin/sh",
+  "hostname":"demo_koza6",
+  "rootless":0,
+  "capabilities":"",
+  "uid":0,
+  "gid":0,
+  "cgroup":{
+    "memory_limit":104857600,
+    "cpu_quota":50000,
+    "cpu_period":100000,
+    "pids_limit":32
+  }
+}

@@ -1,0 +1,5 @@
+koza
+*.o
+testing/
+test_bins/
+alpine*
