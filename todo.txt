@@ -1,0 +1,19 @@
+minirt/
+├── src/
+│   ├── main.c								
+│   ├── cli.c / cli.h            # Argüman parse, komut dispatch
+│   ├── container.c / container.h # Container struct, lifecycle
+│   ├── namespace.c / namespace.h # Namespace kurulumu, yaptık.
+│   ├── rootfs.c / rootfs.h      # Mount, pivot_root, yaptık.
+│   ├── cgroup.c / cgroup.h      # Cgroup v2, hallettik.
+│   ├── caps.c / caps.h          # Capabilities, yapıldı.
+│   ├── network.c / network.h    # Veth, bridge, IP
+│   ├── state.c / state.h        # JSON state okuma/yazma, buraya geldik.
+│   └── utils.c / utils.h        # Yardımcı fonksiyonlar
+├── include/                     # Ortak header'lar
+├── tests/
+│   ├── test_cgroups.c
+│   ├── test_namespace.c         
+│   └── test_rootfs.c            
+├── Makefile
+└── README.md
