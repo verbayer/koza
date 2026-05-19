@@ -11,6 +11,7 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <limits.h>
+#include <sys/mount.h>
 #include "../include/container.h"
 #include "../include/cgroups.h"
 #include "../include/namespaces.h"
@@ -40,70 +41,102 @@ static int container_child(void *arg) {
 
     if (config->rootless) {
         char buf[1];
-        close(args->pipe_write_fd);  // child yazma ucunu kapat
+        close(args->pipe_write_fd);  
         read(args->pipe_read_fd, buf, 1);
     }
 
     // 1. Hostname set et
-    if (namespace_set_hostname(config->hostname) != 0)
-        return -1;
+    if (namespace_set_hostname(config->hostname) != 0){
+	    return -1;}
 
     // 2. Rootfs hazırla
-    if (rootfs_pivot(args->merged) != 0) return -1;
+    if (rootfs_pivot(args->merged) != 0){ return -1;
+    }
+    
+    if (rootfs_mount_defaults() != 0){
+	    
+	    return -1;}
 
-    if (rootfs_mount_defaults() != 0)
-        return -1;
-    if (rootfs_setup_files(config->hostname) != 0)
-        return -1;
 
-    // 3. Capabilities ayarla
-if (strlen(config->capabilities) > 0) {
-    if (caps_set(config->capabilities) != 0)
-        return -1;
-    if (caps_drop_bounding() != 0)
-        return -1;
-    // Config'deki tüm capability'leri ambient'e ekle
-    if (caps_set_ambient_from_string(config->capabilities) != 0)
-        return -1;
-} else {
-    if (caps_drop_bounding() != 0)
-        return -1;
-    if (caps_drop_all() != 0)
-        return -1;
-}
+    if (rootfs_setup_files(config->hostname) != 0){
+	    return -1;}
+
+
+    // 3. KULLANICI AYARLARI (Capability'lerden ÖNCE yapılmalı)
+    if (config->uid != 0 || config->gid != 0) {
+        // Eğer root kullanıcısından normal kullanıcıya geçiş varsa,
+        // kernel'a mevcut capability'leri korumasını söylüyoruz (KEEPCAPS)
+        if (prctl(PR_SET_KEEPCAPS, 1, 0, 0, 0) == -1) {
+            perror("container_child: prctl(PR_SET_KEEPCAPS)");
+            return -1;
+        }
+
+        if (setgid(config->gid) == -1) {
+            perror("container_child: setgid");
+            return -1;
+        }
+        if (setuid(config->uid) == -1) {
+            perror("container_child: setuid");
+            return -1;
+        }
+    }
+
+    // 4. CAPABILITY AYARLARI
+    if (strlen(config->capabilities) > 0) {
+        // String'i cap_t yapısına dönüştür
+        cap_t allowed = cap_from_text(config->capabilities);
+        if (!allowed) {
+            perror("container_child: cap_from_text");
+            return -1;
+        }
+        // setuid/setgid sonrası effective kümesi temizlenmiş olabileceği için
+        // process'e hedef capability maskesini tekrar giydiriyoruz
+        if (cap_set_proc(allowed) == -1) {
+            perror("container_child: cap_set_proc");
+            cap_free(allowed);
+            return -1;
+        }
+
+
+        // execve sonrasına aktarmak için Ambient setini yükselt
+        if (caps_set_ambient_from_string(config->capabilities) != 0) {
+            cap_free(allowed);
+            return -1;
+
+    	    // Bounding setten sadece listede OLMAYANLARI temizle
+        if (caps_drop_bounding(allowed) != 0) {
+            cap_free(allowed);
+            return -1;
+        }
+        }
+
+        cap_free(allowed);
+    } else {
+        // Eğer hiçbir yetki istenmediyse her şeyi temizle
+        if (caps_drop_bounding(NULL) != 0)
+            return -1;
+        if (caps_drop_all() != 0)
+            return -1;
+    }
 
     if (args->interactive) {
-    if (pty_setup_child(args->slave_fd) != 0)
-        return -1;
+        if (pty_setup_child(args->slave_fd) != 0)
+            return -1;
     }
 
-    //verilmiş ise uid/gid ayarla
-    if (config->uid != 0 || config->gid != 0) {
-    if (setgid(config->gid) == -1) {
-        perror("container_child: setgid");
-        return -1;
-    }
-    if (setuid(config->uid) == -1) {
-        perror("container_child: setuid");
-        return -1;
-    }
-    }
-    
-    
-    // 4. Komutu çalıştır
-    char *argv[] = { config->command, NULL };
+    // 5. Komutu çalıştır
+    char *argv[] = {"/bin/sh", "-c", config->command, NULL };
     
     char *envp[] = {
-    "PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
-    "HOME=/root",
-    "TERM=xterm",
-    NULL
+        "PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
+        "HOME=/root",
+        "TERM=xterm",
+        NULL
     };
 
-    execve(config->command, argv, envp);
+    execve("/bin/sh", argv, envp);
 
-    // execv sadece hata durumunda döner
-    perror("container_child: execv");
+    perror("container_child: execve");
     return -1;
 }
 
@@ -123,9 +156,12 @@ int container_create(container_config_t *config, char *id_out, size_t id_out_siz
     strncpy(state.name,    config->name,    sizeof(state.name) - 1);
     strncpy(state.rootfs,  config->rootfs,  sizeof(state.rootfs) - 1);
     strncpy(state.command, config->command, sizeof(state.command) - 1);
+    strncpy(state.capabilities, config->capabilities, sizeof(state.capabilities) - 1);
+    state.uid = config->uid;
+    state.gid = config->gid;
+    state.rootless = config->rootless;
     state.pid    = 0;
     state.status = CONTAINER_CREATED;
-
     // Cgroup oluştur
     if (cgroup_init(state.id) != 0)
         return -1;
@@ -183,6 +219,10 @@ int container_run(const char *id,int interactive) {
     strncpy(config.rootfs,   state.rootfs,  sizeof(config.rootfs) - 1);
     strncpy(config.command,  state.command, sizeof(config.command) - 1);
     strncpy(config.hostname, state.name,    sizeof(config.hostname) - 1);
+    strncpy(config.capabilities, state.capabilities, sizeof(config.capabilities) - 1);
+    config.uid = state.uid;
+    config.gid = state.gid;
+    config.rootless = state.rootless;
     config.interactive = interactive;
     // Stack ayır
     char *stack = malloc(STACK_SIZE);
@@ -275,7 +315,6 @@ int container_run(const char *id,int interactive) {
         close(pipefd[0]);  // okuma ucunu kapat
         close(pipefd[1]);  // yazma ucunu kapat, child devam etsin
     }
-
     // Network kur
     network_config_t net_cfg;
     memset(&net_cfg, 0, sizeof(net_cfg));
@@ -292,7 +331,6 @@ int container_run(const char *id,int interactive) {
     // State'e network bilgilerini kaydet
     strncpy(state.veth_host, net_cfg.veth_host, sizeof(state.veth_host) - 1);
     strncpy(state.ip, net_cfg.ip, sizeof(state.ip) - 1);
-  
     // Cgroup'a ekle
     if (cgroup_add_process(id, pid) != 0) {
 	return -1;
@@ -307,6 +345,12 @@ int container_run(const char *id,int interactive) {
     if (config.interactive) {
     close(args.slave_fd);  // parent slave'i kapatır
     pty_run(master_fd);    // container bitene kadar burada bekler
+
+    // Overlay unmount et
+    char merged[PATH_MAX];
+    snprintf(merged, sizeof(merged), "/var/lib/koza/containers/%s/merged", id);
+    umount2(merged, MNT_DETACH);
+
     close(master_fd);
     /// Shell çıktı, state'i güncelle
     state.status = CONTAINER_STOPPED;
@@ -360,6 +404,12 @@ int container_stop(const char *id) {
 
     waitpid(state.pid, NULL, 0);
 
+    char merged[PATH_MAX];
+    snprintf(merged, sizeof(merged), "/var/lib/koza/containers/%s/merged", id);
+    if (umount2(merged, MNT_DETACH) == -1 && errno != EINVAL && errno != ENOENT) {
+        perror("container_stop: overlay unmount");
+    }
+    
     state.status = CONTAINER_STOPPED;
     state.pid    = 0;
     state_save(&state);

@@ -52,6 +52,10 @@ int state_save(container_state_t *state) {
     json_object_object_add(root, "status",  json_object_new_string(status_to_str(state->status)));
     json_object_object_add(root, "veth_host", json_object_new_string(state->veth_host));
     json_object_object_add(root, "ip",        json_object_new_string(state->ip));
+    json_object_object_add(root, "capabilities", json_object_new_string(state->capabilities));
+    json_object_object_add(root, "uid",          json_object_new_int(state->uid));
+    json_object_object_add(root, "gid",          json_object_new_int(state->gid));
+    json_object_object_add(root, "rootless",     json_object_new_int(state->rootless));
 
 
     // state.json path'i
@@ -113,6 +117,18 @@ int state_load(const char *id, container_state_t *state) {
     if (json_object_object_get_ex(root, "ip", &val))
     strncpy(state->ip, json_object_get_string(val), sizeof(state->ip) - 1);
     
+    if (json_object_object_get_ex(root, "capabilities", &val))
+    strncpy(state->capabilities, json_object_get_string(val), sizeof(state->capabilities) - 1);
+
+    if (json_object_object_get_ex(root, "uid", &val))
+    state->uid = (uid_t)json_object_get_int(val);
+
+    if (json_object_object_get_ex(root, "gid", &val))
+    state->gid = (gid_t)json_object_get_int(val);
+
+    if (json_object_object_get_ex(root, "rootless", &val))
+    state->rootless = json_object_get_int(val);
+
     json_object_put(root);
     return 0;
 }

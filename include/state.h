@@ -20,6 +20,10 @@ typedef struct {
     container_status_t status;
     char veth_host[16];
     char ip[16];
+    char capabilities[256];
+    uid_t uid;
+    gid_t gid;
+    int rootless;
 } container_state_t;
 
 int state_save(container_state_t *state);

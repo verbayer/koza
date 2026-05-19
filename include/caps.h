@@ -16,7 +16,7 @@ int caps_set(const char *caps_str);
   e: effective, i: inheritable, p: permitted
  */
 
-int caps_drop_bounding(void);
+int caps_drop_bounding(cap_t allowed_caps);
 int caps_set_ambient_from_string(const char *caps_str);
 
 #endif
