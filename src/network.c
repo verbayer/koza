@@ -208,14 +208,34 @@ int network_setup_container(pid_t pid, network_config_t *cfg) {
     struct rtnl_link *peer = rtnl_link_veth_get_peer(veth);
     rtnl_link_set_name(peer, cfg->veth_cont);
 
+
     int ret = rtnl_link_add(sock, veth, NLM_F_CREATE);
     rtnl_link_put(veth);
 
-    if (ret != 0) {
+    if (ret == -NLE_EXIST) {
+        // Eski veth'i sil, yeniden oluştur
+        network_cleanup(cfg->veth_host);
+
+        // Yeniden oluştur
+        veth = rtnl_link_veth_alloc();
+        rtnl_link_set_name(veth, cfg->veth_host);
+        struct rtnl_link *peer = rtnl_link_veth_get_peer(veth);
+        rtnl_link_set_name(peer, cfg->veth_cont);
+
+        ret = rtnl_link_add(sock, veth, NLM_F_CREATE);
+        rtnl_link_put(veth);
+
+        if (ret != 0) {
+             fprintf(stderr, "network_setup_container: veth yeniden olusturulamadi: %s\n", nl_geterror(ret));
+             nl_socket_free(sock);
+             return -1;
+        }
+     } else if (ret != 0) {
         fprintf(stderr, "network_setup_container: veth olusturulamadi: %s\n", nl_geterror(ret));
         nl_socket_free(sock);
         return -1;
-    }
+     }
+
 
     // 2. Host tarafını bridge'e bağla
     struct nl_cache *cache;
