@@ -7,6 +7,7 @@
 #include <fcntl.h>
 #include <errno.h>
 #include <limits.h>
+#include <ftw.h>
 #include "../include/utils.h"
 
 int write_file(const char *path, const char *value) {
@@ -103,4 +104,20 @@ int mkdir_p(const char *path, mode_t mode) {
     }
 
     return 0;
+}
+
+
+static int rm_entry(const char *path, const struct stat *sb,
+                    int typeflag, struct FTW *ftwbuf) {
+    (void)sb;
+    (void)ftwbuf;
+
+    if (typeflag == FTW_DP)
+        return rmdir(path);
+    else
+        return remove(path);
+}
+
+int rm_r(const char *path) {
+    return nftw(path, rm_entry, 64, FTW_DEPTH | FTW_PHYS);
 }

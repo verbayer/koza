@@ -150,10 +150,11 @@ int state_delete(const char *id) {
         perror("state_delete: remove");
         return -1;
     }
-    if (rmdir(dir_path) == -1) {
-        perror("state_delete: rmdir");
-        return -1;
+    if (rm_r(dir_path) != 0) {
+    fprintf(stderr, "state_delete: dizin silinemedi\n");
+    return -1;
     }
+    
     return 0;
 }
 
