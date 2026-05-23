@@ -6,6 +6,8 @@
 #include "../include/cli.h"
 #include "../include/container.h"
 #include "../include/config.h"
+#include "../include/image.h"
+
 
 static void print_usage(void) {
     printf("Kullanim:\n");
@@ -172,6 +174,23 @@ static int cmd_config(int argc, char **argv) {
     return config_init(argv[3], path);
 }
 
+static int cmd_export(int argc, char **argv) {
+    if (argc < 3) {
+        fprintf(stderr, "Kullanim: koza export <container_id>\n");
+        return -1;
+    }
+    return image_export(argv[2]);
+}
+
+
+static int cmd_import(int argc, char **argv) {
+    if (argc < 3) {
+        fprintf(stderr, "Kullanim: koza import <dosya.koza>\n");
+        return -1;
+    }
+    return image_import(argv[2]);
+}
+
 int cli_run(int argc, char **argv) {
     if (argc < 2) {
         print_usage();
@@ -190,7 +209,14 @@ int cli_run(int argc, char **argv) {
         return container_list();
     if (strcmp(argv[1], "config") == 0)
         return cmd_config(argc, argv);
+    if (strcmp(argv[1], "export") == 0)
+        return cmd_export(argc, argv);
+    if (strcmp(argv[1], "import") == 0)
+        return cmd_import(argc, argv);
+
     fprintf(stderr, "Bilinmeyen komut: %s\n", argv[1]);
     print_usage();
     return -1;
 }
+
+

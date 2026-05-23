@@ -21,7 +21,7 @@
 #include "../include/utils.h"
 #include "../include/network.h"
 #include "../include/pty.h"
-
+#include "../include/config.h"
 #define STACK_SIZE (1024 * 1024)
 
 // Container child process'inin ihtiyaç duyduğu argümanlar
@@ -190,6 +190,11 @@ int container_create(container_config_t *config, char *id_out, size_t id_out_siz
         cgroup_cleanup(state.id);
         return -1;
     }
+
+    char config_path[PATH_MAX];
+    snprintf(config_path, sizeof(config_path),
+         "/var/lib/koza/containers/%s/config.json", state.id);
+    config_save(config_path, config);
 
     printf("Container olusturuldu: %s (%s)\n", state.name, state.id);
     strncpy(id_out, state.id, id_out_size - 1);

@@ -1,6 +1,6 @@
 CC     = gcc
 CFLAGS = -Wall -Wextra -g -I/usr/include/libnl3
-LIBS   = -lcap -ljson-c -lnl-3 -lnl-route-3 -lutil
+LIBS   = -lcap -ljson-c -lnl-3 -lnl-route-3 -lutil -larchive
 
 SRC = src/main.c \
       src/cli.c \
@@ -13,7 +13,8 @@ SRC = src/main.c \
       src/state.c \
       src/utils.c \
       src/config.c \
-      src/pty.c
+      src/pty.c \
+      src/image.c
 
 OUT = koza
 

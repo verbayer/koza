@@ -9,10 +9,13 @@
 int main(int argc, char **argv) {
     // Gerekli dizinleri oluştur
     if (mkdir_p("/var/lib/koza/containers", 0755) != 0) {
-        fprintf(stderr, "Dizin olusturulamadi\n");
+        fprintf(stderr, "Dizin olusturulamadi:/var/lib/koza/containers\n");
         return 1;
     }
-
+    if(mkdir_p("/var/lib/koza/images", 0755) != 0){
+        fprintf(stderr, "Dizin olusturulamadi:/var/lib/koza/images\n");
+        return 1;
+    }
 
     // koza0 bridge zaten varsa network_init'i atla
     if (if_nametoindex("koza0") == 0) {
