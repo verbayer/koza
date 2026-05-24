@@ -43,7 +43,8 @@ int rootfs_setup_overlay(const char *image_path, const char *container_id) {
         image_path, upper, work);
 
     if (mount("overlay", merged, "overlay", 0, opts) == -1) {
-        perror("rootfs_setup_overlay: mount");
+        if(errno==EBUSY) return 0;
+	perror("rootfs_setup_overlay: mount");
         return -1;
     }
 

@@ -229,6 +229,39 @@ int container_run(const char *id,int interactive) {
     config.gid = state.gid;
     config.rootless = state.rootless;
     config.interactive = interactive;
+    
+    // Config dosyasından limitleri oku
+    char config_path[PATH_MAX];
+    snprintf(config_path, sizeof(config_path),
+         "/var/lib/koza/containers/%s/config.json", id);
+
+    container_config_t full_config;
+    memset(&full_config, 0, sizeof(full_config));
+    config_load(config_path, &full_config);
+
+    // Cgroup yeniden oluştur
+    if (cgroup_init(id) != 0)
+        return -1;
+
+    // Limitleri yeniden uygula
+    if (full_config.cgroup.memory_limit > 0) {
+        char buf[32];
+        snprintf(buf, sizeof(buf), "%ld", full_config.cgroup.memory_limit);
+        cgroup_set_limit(id, "memory.max", buf);
+    }
+
+    if (full_config.cgroup.cpu_quota > 0 && full_config.cgroup.cpu_period > 0) {
+         char buf[32];
+         snprintf(buf, sizeof(buf), "%ld %ld", full_config.cgroup.cpu_quota, full_config.cgroup.cpu_period);
+          cgroup_set_limit(id, "cpu.max", buf);
+    }
+
+    if (full_config.cgroup.pids_limit > 0) {
+        char buf[32];
+        snprintf(buf, sizeof(buf), "%ld", full_config.cgroup.pids_limit);
+        cgroup_set_limit(id, "pids.max", buf);
+    }
+    
     // Stack ayır
     char *stack = malloc(STACK_SIZE);
     if (!stack) {
