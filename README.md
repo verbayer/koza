@@ -15,7 +15,7 @@ Koza uses Linux kernel primitives directly. Each container is isolated using:
 - **Virtual networking** — a `koza0` bridge is created on startup; each container gets a veth pair connected to it
 - **PTY** — interactive containers get a pseudo-terminal via `openpty(3)`
 
-Container state (id, name, pid, status) is persisted to `/var/lib/koza/containers/<id>/state.json` using `json-c`.
+Container state is persisted to `/var/lib/koza/containers/<id>/state.json` using `json-c`.
 
 ## Features
 
