@@ -2,7 +2,6 @@
 
 Koza is a minimal Linux container runtime written in C, built from scratch as an educational project to understand how containers work at the kernel level.
 
-> **Note:** Not production-ready.
 
 ## How It Works
 
